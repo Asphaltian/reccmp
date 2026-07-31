@@ -2,7 +2,7 @@
 
 import re
 import string
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import PureWindowsPath
 from reccmp.types import EntityType
 from .demangler import demangle_vtable
@@ -83,6 +83,7 @@ class CvdumpNode:
     symbol_entry: SymbolsEntry | None = None
     # Preliminary - only used for non-static variables at the moment
     data_type: TypeInfo | None = None
+    aliases: list[str] = field(default_factory=list)
 
     @classmethod
     def from_node_key(cls, key: NodeKey):
@@ -171,7 +172,11 @@ class CvdumpAnalysis:
             if key not in node_dict:
                 node_dict[key] = CvdumpNode.from_node_key(key)
 
-            node_dict[key].set_decorated(pub.name)
+            node = node_dict[key]
+            if node.decorated_name is not None and node.decorated_name != pub.name:
+                node.aliases.append(node.decorated_name)
+
+            node.set_decorated(pub.name)
 
         for sizeref in parser.sizerefs:
             key = NodeKey(sizeref.section, sizeref.offset)

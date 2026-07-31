@@ -39,6 +39,7 @@ def load_cvdump(cvdump_analysis: CvdumpAnalysis, db: EntityDb, recomp_bin: PEIma
     # Build the list of entries to insert to the DB.
     # In the rare case we have duplicate symbols for an address, ignore them.
     seen_addrs = set()
+    aliases: dict[int, list[str]] = {}
 
     with db.batch() as batch:
         for sym in cvdump_analysis.nodes:
@@ -61,6 +62,9 @@ def load_cvdump(cvdump_analysis: CvdumpAnalysis, db: EntityDb, recomp_bin: PEIma
                 continue
 
             seen_addrs.add(addr)
+
+            if sym.aliases:
+                aliases.setdefault(addr, []).extend(sym.aliases)
 
             # If this symbol is the final one in its section, we were not able to
             # estimate its size because we didn't have the total size of that section.
@@ -120,6 +124,9 @@ def load_cvdump(cvdump_analysis: CvdumpAnalysis, db: EntityDb, recomp_bin: PEIma
                 if sym.node_type == EntityType.DATA and sym.data_type is not None:
                     assert isinstance(sym.data_type.key, int)
                     batch.set(ImageId.RECOMP, addr, data_type=sym.data_type.key)
+
+        for addr, names in aliases.items():
+            batch.set(ImageId.RECOMP, addr, aliases=names)
 
 
 def load_cvdump_lines(
