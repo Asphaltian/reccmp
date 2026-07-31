@@ -648,7 +648,13 @@ class CvdumpTypesParser:
         except AssertionError:
             logger.error("Failed to parse PDB types leaf:\n%s", leaf)
 
-        return self._keys[leaf_id]
+        try:
+            return self._keys[leaf_id]
+        except KeyError as ex:
+            # The leaf was skipped: either it failed to parse above, or its kind is outside
+            # MODES_OF_INTEREST. Callers already treat a missing type as recoverable, but they
+            # catch CvdumpKeyError, and a bare KeyError is its base class so it slips past them.
+            raise CvdumpKeyError(leaf_id) from ex
 
     def read_all(self, section: str):
         r_leafsplit = re.compile(r"\n(?=0x\w{4,8} : )")
