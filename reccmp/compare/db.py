@@ -33,6 +33,9 @@ class EntityKeyValueStore(TypedDict):
     symbol: NotRequired[str | None]
     """The unique mangled/linker name for this entity."""
 
+    aliases: NotRequired[list[str]]
+    """The other symbols the linker folded onto this entity's address. (COMDAT folding.)"""
+
     type: NotRequired[EntityType | None]
     """What kind of entity this is."""
 

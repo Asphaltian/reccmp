@@ -2,7 +2,7 @@
 
 import re
 import string
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import PureWindowsPath
 from reccmp.formats import Image
 from reccmp.formats.exceptions import InvalidVirtualAddressError, SectionNotFoundError
@@ -85,6 +85,13 @@ class CvdumpNode:
     symbol_entry: SymbolsEntry | None = None
     # Preliminary - only used for non-static variables at the moment
     data_type: TypeInfo | None = None
+    aliases: list[str] = field(default_factory=list)
+
+    def add_public(self, name: str):
+        if self.decorated_name is not None and self.decorated_name != name:
+            self.aliases.append(self.decorated_name)
+
+        self.set_decorated(name)
 
     def set_decorated(self, name: str):
         self.decorated_name = name
@@ -186,7 +193,7 @@ class CvdumpAnalysis:
             if key not in node_dict:
                 node_dict[key] = CvdumpNode(pub.section, pub.offset, key)
 
-            node_dict[key].set_decorated(pub.name)
+            node_dict[key].add_public(pub.name)
 
         for sizeref in parser.sizerefs:
             key = get_addr(sizeref.section, sizeref.offset)

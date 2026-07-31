@@ -103,6 +103,9 @@ def load_cvdump(cvdump_analysis: CvdumpAnalysis, db: EntityDb, recomp_bin: PEIma
                     assert isinstance(sym.data_type.key, int)
                     batch.set(ImageId.RECOMP, sym.addr, data_type=sym.data_type.key)
 
+            if sym.aliases:
+                batch.set(ImageId.RECOMP, sym.addr, aliases=sym.aliases)
+
 
 def load_cvdump_lines(
     cvdump_analysis: CvdumpAnalysis, lines_db: LinesDb, recomp_bin: PEImage
