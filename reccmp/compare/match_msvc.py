@@ -53,12 +53,10 @@ def match_symbols(
         if not symbol:
             continue
 
-        # Truncate symbol to 255 chars for older MSVC. See also: Warning C4786.
-        if truncate:
-            symbol = symbol[:255]
-
         assert ent.recomp_addr is not None
-        symbol_index.add(symbol, ent.recomp_addr)
+
+        # Truncate symbol to 255 chars for older MSVC. See also: Warning C4786.
+        symbol_index.add(symbol[:255] if truncate else symbol, ent.recomp_addr)
 
     with db.batch() as batch:
         for ent in db.unmatched(ImageId.ORIG):
@@ -91,6 +89,29 @@ def match_symbols(
                     ent.orig_addr,
                     msg=f"Failed to match at 0x{ent.orig_addr:x} with symbol '{symbol}'",
                 )
+
+
+def match_symbol_aliases(db: EntityDb, *, truncate: bool = False):
+    alias_index = EntityIndex()
+
+    for ent in db.unmatched(ImageId.RECOMP):
+        assert ent.recomp_addr is not None
+        for name in ent.get("aliases") or []:
+            alias_index.add(name[:255] if truncate else name, ent.recomp_addr)
+
+    with db.batch() as batch:
+        for ent in db.unmatched(ImageId.ORIG):
+            assert ent.orig_addr is not None
+            symbol = ent.get("symbol")
+
+            if not symbol:
+                continue
+
+            if truncate:
+                symbol = symbol[:255]
+
+            if symbol in alias_index:
+                batch.match(ent.orig_addr, alias_index.pop(symbol))
 
 
 def match_functions(

@@ -26,6 +26,7 @@ from .match_msvc import (
     match_lines,
     match_symbols,
     match_functions,
+    match_symbol_aliases,
     match_vtables,
     match_static_variables,
     match_variables,
@@ -241,6 +242,7 @@ class Compare:
         match_crt_startup(self._db, self.orig_bin, self.recomp_bin)
         check_vtables(self._db)
         match_ref(self._db, self.report)
+        match_symbol_aliases(self._db, truncate=self.cvdump_analysis.truncate_symbols)
         unique_names_for_overloaded_functions(self._db)
         name_thunks(self._db)
 
