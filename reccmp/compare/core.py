@@ -343,6 +343,12 @@ class Compare:
         orig_addrs = [t for (t,) in struct.iter_unpack("<L", orig_table)]
         recomp_addrs = [t for (t,) in struct.iter_unpack("<L", recomp_table)]
 
+        if match.size(ImageId.ORIG) is None:
+            for i, addr in enumerate(orig_addrs):
+                if not self.orig_bin.is_valid_vaddr(addr):
+                    del orig_addrs[i:]
+                    break
+
         # Trailing null entries on the recomp side are alignment padding, not
         # virtual functions missing from orig, so drop them. Non-null entries
         # past the end of the orig table are kept: these are virtual functions
