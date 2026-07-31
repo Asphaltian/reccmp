@@ -272,7 +272,16 @@ class Compare:
             )
             vtable_size = 4 * (vtable_size // 4)
 
+        # The size comes from the recomp symbol, which can run past the last slot and into
+        # whatever the linker aligned after it. A vtable holds nothing but code addresses,
+        # so stop at the first original entry that is not one.
         orig_table = self.orig_bin.read(match.orig_addr, vtable_size)
+        for index, (entry,) in enumerate(struct.iter_unpack("<L", orig_table)):
+            if not self.orig_bin.is_valid_vaddr(entry):
+                vtable_size = 4 * index
+                break
+
+        orig_table = orig_table[:vtable_size]
         recomp_table = self.recomp_bin.read(match.recomp_addr, vtable_size)
 
         raw_addrs = zip(
