@@ -53,12 +53,14 @@ def match_symbols(
         if not symbol:
             continue
 
-        # Truncate symbol to 255 chars for older MSVC. See also: Warning C4786.
-        if truncate:
-            symbol = symbol[:255]
-
         assert ent.recomp_addr is not None
-        symbol_index.add(symbol, ent.recomp_addr)
+
+        # Folding leaves several symbols on one address. Index every one of them so an original
+        # that refers to any alias still finds it. Duplicate pairs are reduced when matches
+        # are finalized, so the extra entries are harmless.
+        for name in [symbol, *(ent.get("aliases") or [])]:
+            # Truncate symbol to 255 chars for older MSVC. See also: Warning C4786.
+            symbol_index.add(name[:255] if truncate else name, ent.recomp_addr)
 
     with db.batch() as batch:
         for ent in db.unmatched(ImageId.ORIG):

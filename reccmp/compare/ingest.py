@@ -36,8 +36,11 @@ def load_cvdump_types(cvdump_analysis: CvdumpAnalysis, types: CvdumpTypesParser)
 
 def load_cvdump(cvdump_analysis: CvdumpAnalysis, db: EntityDb, recomp_bin: PEImage):
     # Build the list of entries to insert to the DB.
-    # In the rare case we have duplicate symbols for an address, ignore them.
+    # Identical COMDAT folding puts several symbols on one address. Keep the first as the
+    # entity's own symbol and remember the rest, or a caller that refers to one of the other
+    # names cannot be resolved and reads as a difference against identical bytes.
     seen_addrs = set()
+    aliases: dict[int, list[str]] = {}
 
     with db.batch() as batch:
         for sym in cvdump_analysis.nodes:
@@ -57,6 +60,8 @@ def load_cvdump(cvdump_analysis: CvdumpAnalysis, db: EntityDb, recomp_bin: PEIma
             sym.addr = addr
 
             if addr in seen_addrs:
+                if sym.decorated_name:
+                    aliases.setdefault(addr, []).append(sym.decorated_name)
                 continue
 
             seen_addrs.add(addr)
@@ -119,6 +124,9 @@ def load_cvdump(cvdump_analysis: CvdumpAnalysis, db: EntityDb, recomp_bin: PEIma
                 if sym.node_type == EntityType.DATA and sym.data_type is not None:
                     assert isinstance(sym.data_type.key, int)
                     batch.set(ImageId.RECOMP, addr, data_type=sym.data_type.key)
+
+        for addr, names in aliases.items():
+            batch.set(ImageId.RECOMP, addr, aliases=names)
 
 
 def load_cvdump_lines(
