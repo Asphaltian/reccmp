@@ -828,7 +828,9 @@ class CvdumpTypesParser:
             "volatile Pointer",
             "volatile const Pointer",
             "Pointer to member",
+            "const Pointer to member",
             "Pointer to member function",
+            "const Pointer to member function",
         )
 
         obj: CvdumpParsedType = {
