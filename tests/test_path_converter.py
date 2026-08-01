@@ -20,8 +20,10 @@ def test_resolve():
     # No match
     assert resolve(PureWindowsPath("Z:\\test\\file.h"), (path,)) is None
 
-    # Match even from a different path if at least the filename matches
     path = PurePosixPath("/a/b/c/file.h")
+    assert resolve(PureWindowsPath("Z:\\test\\file.h"), (path,)) is None
+
+    path = PurePosixPath("/a/b/test/file.h")
     assert resolve(PureWindowsPath("Z:\\test\\file.h"), (path,)) == path
 
 
