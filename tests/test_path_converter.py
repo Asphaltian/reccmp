@@ -20,8 +20,13 @@ def test_resolve():
     # No match
     assert resolve(PureWindowsPath("Z:\\test\\file.h"), (path,)) is None
 
-    # Match even from a different path if at least the filename matches
+    # The filename alone is not enough when the local path has a directory that could have
+    # agreed and did not. A vendored tree keeps its own copy of common names like Log.cpp.
     path = PurePosixPath("/a/b/c/file.h")
+    assert resolve(PureWindowsPath("Z:\\test\\file.h"), (path,)) is None
+
+    # One matching directory is enough
+    path = PurePosixPath("/a/b/test/file.h")
     assert resolve(PureWindowsPath("Z:\\test\\file.h"), (path,)) == path
 
 

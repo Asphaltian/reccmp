@@ -114,6 +114,13 @@ class CvdumpSymbolsParser:
         "S_REGREL32",  # TODO: Seen as early as MSVC 7.00; might be relevant to Ghidra and/or stackcmp
         "S_UDT",
         "S_FRAMEPROC",
+        # MSVC 8 emits these and nothing here needs them. /GS puts a cookie in the frame,
+        # S_CALLSITEINFO types an indirect call, and the last three describe the image layout.
+        "S_FRAMECOOKIE",
+        "S_CALLSITEINFO",
+        "S_EXPORT",
+        "S_SECTION",
+        "S_COFFGROUP",
     ]
 
     """Parser for cvdump output, SYMBOLS section."""

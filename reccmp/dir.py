@@ -37,6 +37,16 @@ def _count_matching_path_parts(
     return (score, local_path)
 
 
+def _is_conclusive(score: int, foreign_path: PurePath, local_path: PurePath) -> bool:
+    """A bare filename is not evidence of the same file. A vendored tree outside the source roots
+    has its own G3D/Log.cpp, and pairing that with util/Log.cpp merges one file's line records into
+    the other. Accept a single matching part only when one path had nothing more to compare."""
+    if score == 0:
+        return False
+
+    return score > 1 or score == min(len(foreign_path.parts), len(local_path.parts))
+
+
 def convert_foreign_path(
     foreign_path: PurePath, local_paths: tuple[PurePath, ...]
 ) -> PurePath | None:
@@ -49,7 +59,7 @@ def convert_foreign_path(
     if len(scored) >= 2:
         [(top_score, top_path), (next_score, _)] = scored[:2]
         # Return if this is the best match above all others
-        if top_score > next_score:
+        if top_score > next_score and _is_conclusive(top_score, foreign_path, top_path):
             return top_path
 
         # If there are two or more paths with an equal number of
@@ -58,8 +68,7 @@ def convert_foreign_path(
 
     if len(scored) == 1:
         top_score, top_path = scored[0]
-        # Return only if we matched at least one part
-        if top_score > 0:
+        if _is_conclusive(top_score, foreign_path, top_path):
             return top_path
 
         return None
