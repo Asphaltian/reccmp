@@ -260,6 +260,24 @@ class Compare:
         compare.run()
         return compare
 
+    def _slot_is_equivalent(self, orig_addr: int, recomp_addr: int) -> bool:
+        """Whether the code at these two addresses compares identical, ignoring who claims it."""
+        recomp = self._db.get(ImageId.RECOMP, recomp_addr)
+        if recomp is None or recomp.entity_type != EntityType.FUNCTION:
+            return False
+
+        size = recomp.any_size()
+        if size == 0:
+            return False
+
+        probe = ReccmpMatch(
+            orig_addr, recomp_addr, {"name": "", "size": size, "recomp_size": size}
+        )
+        try:
+            return self.function_comparator.compare_function(probe).match_ratio == 1.0
+        except IndexError:
+            return False
+
     def _compare_vtable(self, match: ReccmpMatch) -> EntityCompareResult:
         vtable_size = match.any_size()
 
@@ -327,6 +345,17 @@ class Compare:
                 and orig.recomp_addr == recomp.recomp_addr
             ):
                 ratio += 1
+            elif (
+                recomp is not None
+                and (orig is None or orig.recomp_addr is None)
+                and self._slot_is_equivalent(raw_orig, raw_recomp)
+            ):
+                # The original did not always fold what we fold. Where it kept two identical
+                # functions apart, only one of them can hold the match, and the other's slot
+                # then reads as missing against code that is the same. A slot is right when it
+                # points at equivalent code, whichever address holds the match.
+                ratio += 1
+                orig = recomp
 
             n_entries += 1
             index = f"vtable0x{i*4:02x}"
