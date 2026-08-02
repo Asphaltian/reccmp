@@ -82,15 +82,21 @@ def create_analysis_strings(
             if addr in last_range:
                 continue
 
-            if is_likely_latin1(string) and not db.intersects(img_id, addr):
-                batch.set(
-                    img_id,
-                    addr,
-                    type=EntityType.STRING,
-                    name=entity_name_from_string(string),
-                    size=len(string) + 1,  # including null-terminator
-                )
+            if not is_likely_latin1(string):
+                continue
+
+            if db.intersects(img_id, addr):
                 last_range = range(addr, addr + len(string) + 1)
+                continue
+
+            batch.set(
+                img_id,
+                addr,
+                type=EntityType.STRING,
+                name=entity_name_from_string(string),
+                size=len(string) + 1,  # including null-terminator
+            )
+            last_range = range(addr, addr + len(string) + 1)
 
 
 def create_analysis_floats(db: EntityDb, img_id: ImageId, binfile: PEImage):
