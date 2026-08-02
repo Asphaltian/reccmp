@@ -530,8 +530,7 @@ class CvdumpTypesParser:
         output: list[ScalarType] = []
         last_extent = total_size
 
-        # Walk the scalar list in reverse; we assume a gap could not
-        # come at the start of the struct.
+        # Walk the scalar list in reverse.
         for scalar in scalars[::-1]:
             this_extent = scalar.offset + scalar.size
             size_diff = last_extent - this_extent
@@ -549,6 +548,19 @@ class CvdumpTypesParser:
 
             output.insert(0, scalar)
             last_extent = scalar.offset
+
+        # A gap can also come at the start. An empty base class contributes no scalars, so a type
+        # whose first member sits above one begins with bytes no scalar covers, and the format
+        # string is then shorter than the type it describes: std::map is 12 bytes and reduces to 8.
+        for i in range(last_extent - 1, -1, -1):
+            output.insert(
+                0,
+                ScalarType(
+                    offset=i,
+                    name="(padding)",
+                    type=get_primitive(CVInfoTypeEnum.T_UCHAR),
+                ),
+            )
 
         return output
 
