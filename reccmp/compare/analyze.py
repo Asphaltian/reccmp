@@ -57,15 +57,25 @@ def create_analysis_strings(
             if addr in last_range:
                 continue
 
-            if is_likely_latin1(string) and not db.intersects(img_id, addr):
-                batch.set(
-                    img_id,
-                    addr,
-                    type=EntityType.STRING,
-                    name=entity_name_from_string(string),
-                    size=len(string) + 1,  # including null-terminator
-                )
+            if not is_likely_latin1(string):
+                continue
+
+            # Remember the extent even when an entity is already here, which is what a data source
+            # row for the literal leaves behind. Without this the next iteration creates an entity
+            # for the tail of the same literal, and the other image, where the scan made the entity
+            # and set the range, has nothing to pair it with.
+            if db.intersects(img_id, addr):
                 last_range = range(addr, addr + len(string) + 1)
+                continue
+
+            batch.set(
+                img_id,
+                addr,
+                type=EntityType.STRING,
+                name=entity_name_from_string(string),
+                size=len(string) + 1,  # including null-terminator
+            )
+            last_range = range(addr, addr + len(string) + 1)
 
 
 def create_analysis_floats(db: EntityDb, img_id: ImageId, binfile: PEImage):
