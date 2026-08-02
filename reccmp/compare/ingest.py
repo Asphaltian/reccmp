@@ -44,6 +44,9 @@ def load_cvdump(cvdump_analysis: CvdumpAnalysis, db: EntityDb, recomp_bin: PEIma
             if sym.name() is None and sym.node_type is None:
                 continue
 
+            if (guard_name := sym.name()) is not None and guard_name.startswith("$S"):
+                continue
+
             # If this symbol is the final one in its section, we were not able to
             # estimate its size because we didn't have the total size of that section.
             # We can get this estimate now and assume that the final symbol occupies
