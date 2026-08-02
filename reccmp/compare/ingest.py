@@ -246,6 +246,7 @@ def load_markers(
                 name=primary.name,
                 base_class=primary.base_class,
                 type=EntityType.VTABLE,
+                vtable_asserted=True,
             )
 
             if len(candidates) > 1:
