@@ -328,6 +328,14 @@ def match_variables(db: EntityDb, report: ReccmpReportProtocol = reccmp_report_n
         if not name:
             continue
 
+        # A function-local static belongs to match_static_variables, which finds it by the
+        # "<name>___<function>" symbol we decorated it with. Indexing its bare name here lets it
+        # take a file-scope static of the same name, which is how G3D's two `next` locals were
+        # stealing RakNet's.
+        symbol = ent.get("symbol")
+        if symbol is not None and symbol.startswith(name + "___"):
+            continue
+
         assert ent.recomp_addr is not None
         var_name_index.add(name, ent.recomp_addr)
 
