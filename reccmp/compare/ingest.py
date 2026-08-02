@@ -55,6 +55,9 @@ def load_cvdump(cvdump_analysis: CvdumpAnalysis, db: EntityDb, recomp_bin: PEIma
             if not recomp_bin.is_valid_section(sym.section):
                 continue
 
+            if (guard_name := sym.name()) is not None and guard_name.startswith("$S"):
+                continue
+
             addr = recomp_bin.get_abs_addr(sym.section, sym.offset)
             sym.addr = addr
 
