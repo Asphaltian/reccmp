@@ -312,6 +312,35 @@ class Compare:
         compare.run()
         return compare
 
+    def _slot_may_differ_by_folding(
+        self, orig: ReccmpEntity | None, recomp: ReccmpEntity
+    ) -> bool:
+        if orig is None or orig.recomp_addr is None:
+            return True
+
+        if orig.recomp_addr == recomp.recomp_addr:
+            return False
+
+        paired = self._db.get(ImageId.RECOMP, orig.recomp_addr)
+        return bool(recomp.get("aliases") or (paired and paired.get("aliases")))
+
+    def _slot_is_equivalent(self, orig_addr: int, recomp_addr: int) -> bool:
+        recomp = self._db.get(ImageId.RECOMP, recomp_addr)
+        if recomp is None or recomp.entity_type != EntityType.FUNCTION:
+            return False
+
+        size = recomp.any_size()
+        if size == 0:
+            return False
+
+        probe = ReccmpMatch(
+            orig_addr, recomp_addr, {"name": "", "size": size, "recomp_size": size}
+        )
+        try:
+            return self.function_comparator.compare_function(probe).match_ratio == 1.0
+        except IndexError:
+            return False
+
     def _compare_vtable(self, match: ReccmpMatch) -> EntityCompareResult:
         recomp_size = match.any_size(ImageId.RECOMP)
 
@@ -405,6 +434,14 @@ class Compare:
                 and orig.recomp_addr == recomp.recomp_addr
             ):
                 ratio += 1
+            elif (
+                raw_orig is not None
+                and recomp is not None
+                and self._slot_may_differ_by_folding(orig, recomp)
+                and self._slot_is_equivalent(raw_orig, raw_recomp)
+            ):
+                ratio += 1
+                orig = recomp
 
             n_entries += 1
             index = f"vtable0x{i*4:02x}"
