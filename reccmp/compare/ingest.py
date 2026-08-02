@@ -56,6 +56,14 @@ def load_cvdump(cvdump_analysis: CvdumpAnalysis, db: EntityDb, recomp_bin: PEIma
             if not recomp_bin.is_valid_section(sym.section):
                 continue
 
+            # A magic-static guard is named `$S<n>`, numbered per translation unit, and the
+            # original's compiler emitted no symbol for one at all. Naming ours renders the operand
+            # as a name against an unnamed original, so every load of a function-local static reads
+            # as a difference. Left unnamed, both sides fall to the same positional placeholder,
+            # which is what they are.
+            if (guard_name := sym.name()) is not None and guard_name.startswith("$S"):
+                continue
+
             addr = recomp_bin.get_abs_addr(sym.section, sym.offset)
             sym.addr = addr
 
