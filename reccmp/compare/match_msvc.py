@@ -361,6 +361,10 @@ def match_variables(db: EntityDb, report: ReccmpReportProtocol = reccmp_report_n
         if not name:
             continue
 
+        symbol = ent.get("symbol")
+        if symbol is not None and symbol.startswith(name + "___"):
+            continue
+
         assert ent.recomp_addr is not None
         var_name_index.add(name, ent.recomp_addr)
 
