@@ -246,6 +246,11 @@ def load_markers(
                 name=tbl.name,
                 base_class=tbl.base_class,
                 type=EntityType.VTABLE,
+                # A `// VTABLE:` marker asserts the layout, so the table is compared slot by slot.
+                # A table that only reaches the database through a data source is there so a store
+                # of it resolves to a name; nothing has claimed its slots, and comparing it would
+                # report a difference against a class the decomp has not written yet.
+                vtable_asserted=True,
             )
 
         for string in codebase.iter_strings():

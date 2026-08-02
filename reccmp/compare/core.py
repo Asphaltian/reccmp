@@ -436,7 +436,13 @@ class Compare:
         return self._db.get_functions()
 
     def get_vtables(self) -> Iterator[ReccmpMatch]:
-        return self._db.get_matches_by_type(EntityType.VTABLE)
+        """Only tables a `// VTABLE:` marker asserts. One that reached the database through a data
+        source is named so a store of it resolves; its slots are nobody's claim to compare."""
+        return (
+            ent
+            for ent in self._db.get_matches_by_type(EntityType.VTABLE)
+            if ent.get("vtable_asserted")
+        )
 
     def get_variables(self) -> Iterator[ReccmpMatch]:
         return self._db.get_matches_by_type(EntityType.DATA)
