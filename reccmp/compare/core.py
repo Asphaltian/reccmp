@@ -546,7 +546,11 @@ class Compare:
         return self._db.get_functions()
 
     def get_vtables(self) -> Iterator[ReccmpMatch]:
-        return self._db.get_matches_by_type(EntityType.VTABLE)
+        return (
+            ent
+            for ent in self._db.get_matches_by_type(EntityType.VTABLE)
+            if ent.get("vtable_asserted")
+        )
 
     def get_variables(self) -> Iterator[ReccmpMatch]:
         return self._db.get_matches_by_type(EntityType.DATA)

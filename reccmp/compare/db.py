@@ -91,6 +91,10 @@ class EntityKeyValueStore(TypedDict):
     base_class: NotRequired[str | None]
     """The base class for this multiple/virtual inheritance VTABLE entity."""
 
+    vtable_asserted: NotRequired[bool]
+    """For a VTABLE entity, was its layout asserted by a VTABLE marker?
+    (As opposed to a name that only resolves a store.)"""
+
 
 class ReccmpEntity:
     """ORM object for Reccmp database entries."""
