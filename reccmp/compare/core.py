@@ -189,7 +189,7 @@ class Compare:
         for img_id in (ImageId.ORIG, ImageId.RECOMP):
             set_max_size(self._db, img_id)
 
-        check_vtables(self._db, self.orig_bin)
+        check_vtables(self._db, self.orig_bin, self.recomp_bin)
         match_ref(self._db, self.report)
         unique_names_for_overloaded_functions(self._db)
         name_thunks(self._db)

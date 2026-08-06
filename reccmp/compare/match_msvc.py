@@ -37,6 +37,21 @@ class EntityIndex:
 
         return value
 
+    def discard(self, key: str, value: int):
+        """Remove one occurrence of value at key, if present. Used to keep a
+        second index in sync when a match is taken from the other one."""
+        values = self._dict.get(key)
+        if values is None:
+            return
+
+        try:
+            values.remove(value)
+        except ValueError:
+            return
+
+        if not values:
+            del self._dict[key]
+
 
 def match_symbols(
     db: EntityDb,
@@ -47,6 +62,12 @@ def match_symbols(
     """Match all entities with the 'symbol' attribute set. We expect this value to be unique."""
 
     symbol_index = EntityIndex()
+
+    # Symbols as we have them, before the 255 char cut. Two members of a template
+    # instantiation whose arguments alone exceed 255 chars share a truncated key,
+    # so matching on it alone crosses them. Prefer the full symbol where we have it.
+    exact_index = EntityIndex()
+    recomp_full: dict[int, list[str]] = {}
 
     for ent in db.unmatched(ImageId.RECOMP):
         symbol = ent.get("symbol")
@@ -60,7 +81,11 @@ def match_symbols(
         # are finalized, so the extra entries are harmless.
         for name in [symbol, *(ent.get("aliases") or [])]:
             # Truncate symbol to 255 chars for older MSVC. See also: Warning C4786.
-            symbol_index.add(name[:255] if truncate else name, ent.recomp_addr)
+            key = name[:255] if truncate else name
+            symbol_index.add(key, ent.recomp_addr)
+            if key != name:
+                exact_index.add(name, ent.recomp_addr)
+                recomp_full.setdefault(ent.recomp_addr, []).append(name)
 
     with db.batch() as batch:
         for ent in db.unmatched(ImageId.ORIG):
@@ -70,12 +95,23 @@ def match_symbols(
             if not symbol:
                 continue
 
+            full_symbol = symbol
+
             # Repeat the truncate for our match search
             if truncate:
                 symbol = symbol[:255]
 
+            # An exact symbol is unambiguous; the truncated one is not.
+            if full_symbol != symbol and full_symbol in exact_index:
+                recomp_addr = exact_index.pop(full_symbol)
+                symbol_index.discard(symbol, recomp_addr)
+                batch.match(ent.orig_addr, recomp_addr)
+                continue
+
             if symbol in symbol_index:
                 recomp_addr = symbol_index.pop(symbol)
+                for full in recomp_full.get(recomp_addr, []):
+                    exact_index.discard(full, recomp_addr)
 
                 # If match was not unique:
                 if symbol in symbol_index:
@@ -106,6 +142,15 @@ def match_functions(
 
     name_index = EntityIndex()
 
+    # Names as we actually have them, before the 255 char cut. Truncation exists
+    # for names the PDB itself truncated, but a template instantiation whose
+    # arguments alone run past 255 chars collapses every one of its members onto
+    # the same key: _Max, erase and _Buynode become indistinguishable and pair by
+    # address order instead of by name. Where both sides carry the full name we
+    # match on that first and only fall back to the truncated key.
+    exact_index = EntityIndex()
+    recomp_full: dict[int, str] = {}
+
     # TODO: We allow a match if entity_type is null.
     # This can be removed if we can more confidently declare a symbol is a function
     # when adding from the PDB.
@@ -118,12 +163,17 @@ def match_functions(
         if not name:
             continue
 
+        full_name = name
+
         # Truncate function name to 255 chars for older MSVC. See also: Warning C4786.
         if truncate:
             name = name[:255]
 
         assert ent.recomp_addr is not None
         name_index.add(name, ent.recomp_addr)
+        if full_name != name:
+            exact_index.add(full_name, ent.recomp_addr)
+            recomp_full[ent.recomp_addr] = full_name
 
         # Get the symbol for the error message later.
         if symbol is not None:
@@ -145,12 +195,25 @@ def match_functions(
 
             assert ent.orig_addr is not None
 
+            full_name = name
+
             # Repeat the truncate for our match search
             if truncate:
                 name = name[:255]
 
+            # Prefer the untruncated name where both sides have it. This is not a
+            # tie-break: the truncated key is ambiguous by construction, so taking
+            # it first crosses the members of a long instantiation.
+            if full_name != name and full_name in exact_index:
+                recomp_addr = exact_index.pop(full_name)
+                name_index.discard(name, recomp_addr)
+                batch.match(ent.orig_addr, recomp_addr)
+                continue
+
             if name in name_index:
                 recomp_addr = name_index.pop(name)
+                if recomp_addr in recomp_full:
+                    exact_index.discard(recomp_full[recomp_addr], recomp_addr)
                 # If match was not unique
                 if name in name_index:
                     non_unique_names.add(name)

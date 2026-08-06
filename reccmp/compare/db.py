@@ -228,13 +228,22 @@ class EntityBatch:
         """
         used_orig = set()
         used_recomp = set()
+        staged = set()
 
         # This should have the same effect as the original implementation
         # that used two dicts to check uniqueness during each call to match().
         for orig, recomp in self._matches:
+            # Staging the same pair more than once is idempotent, not a conflict.
+            # It happens routinely: every vtable that references a function stages
+            # the same match again. Only a pair that disagrees with one already
+            # taken is worth reporting.
+            if (orig, recomp) in staged:
+                continue
+
             if orig not in used_orig and recomp not in used_recomp:
                 used_orig.add(orig)
                 used_recomp.add(recomp)
+                staged.add((orig, recomp))
                 yield ((orig, recomp))
             else:
                 logger.warning(
