@@ -312,6 +312,12 @@ class Compare:
         compare.run()
         return compare
 
+    def _is_code_addr(self, addr: int) -> bool:
+        try:
+            return any(addr in r.range for r in self.orig_bin.get_code_regions())
+        except NotImplementedError:
+            return self.orig_bin.is_valid_vaddr(addr)
+
     def _slot_may_differ_by_folding(
         self, orig: ReccmpEntity | None, recomp: ReccmpEntity
     ) -> bool:
@@ -376,7 +382,7 @@ class Compare:
 
         if match.size(ImageId.ORIG) is None:
             for i, addr in enumerate(orig_addrs):
-                if not self.orig_bin.is_valid_vaddr(addr):
+                if not self._is_code_addr(addr):
                     del orig_addrs[i:]
                     break
 
