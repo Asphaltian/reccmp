@@ -288,6 +288,13 @@ class VariableComparator:
         if orig_addr == 0 and recomp_addr == 0:
             return True
 
+        if (
+            orig_addr == recomp_addr
+            and not self.orig_bin.is_valid_vaddr(orig_addr)
+            and not self.recomp_bin.is_valid_vaddr(recomp_addr)
+        ):
+            return True
+
         return self.db.is_match(orig_addr, recomp_addr)
 
     def is_pointer_match_to_offset(self, orig_addr: int, recomp_addr: int) -> bool:
