@@ -79,6 +79,10 @@ class EntityKeyValueStore(TypedDict):
     parent_function: NotRequired[int]
     """The orig address of the function that owns this static variable."""
 
+    module: NotRequired[str]
+    """For a DATA entity, the object file that contributed it.
+    Lets a file static pair only within the object that defines it."""
+
     filename: NotRequired[str]
     """The code filename for a LINE entity."""
 

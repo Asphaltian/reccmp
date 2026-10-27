@@ -283,6 +283,7 @@ class Compare:
             .publics()
             .symbols()
             .section_contributions()
+            .modules()
             .types()
             .segment_map()
             .run()
