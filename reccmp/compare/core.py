@@ -278,6 +278,7 @@ class Compare:
             .symbols()
             .section_contributions()
             .types()
+            .segment_map()
             .run()
         )
         pdb_file = CvdumpAnalysis(cvdump)

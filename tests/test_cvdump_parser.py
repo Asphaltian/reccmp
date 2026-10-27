@@ -36,3 +36,18 @@ def test_globals():
         name="fSystemSet",
         is_global=False,
     )
+
+
+SEGMENT_MAP_SAMPLE = """
+Sec  flags  ovl   grp   frm sname cname    offset    cbSeg
+ 01  010d  0000  0000  0001  ffff  ffff  00000000 00235bfa
+ 02  0109  0000  0000  0002  ffff  ffff  00000000 0008b98a
+ 03  010b  0000  0000  0003  ffff  ffff  00000000 00033338
+ 06  0208  0000  0000  0000  ffff  ffff  00000000 ffffffff
+"""
+
+
+def test_segment_map_absolute():
+    parser = CvdumpParser()
+    parser.read_section("SEGMENT MAP", SEGMENT_MAP_SAMPLE)
+    assert parser.absolute_segments == {0x0006}
