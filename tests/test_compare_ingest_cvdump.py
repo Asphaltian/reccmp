@@ -817,3 +817,29 @@ def test_lproc32_gproc32_collision(binfile: PEImage):
     assert entity.get("type") == EntityType.FUNCTION
     # Should not overwrite with size 0 after reading the S_LPROC32 node.
     assert entity.size(ImageId.RECOMP) == 0x6E
+
+
+def test_absolute_symbol_skipped(binfile: PEImage):
+    db = EntityDb()
+    parser = CvdumpParser()
+    parser.read_section(
+        "PUBLICS",
+        dedent("""\
+        S_PUB32: [0003:0001292A], Flags: 00000000, __OP_LOG10jmptab
+        S_PUB32: [0006:00009876], Flags: 00000000, __fltused
+        """),
+    )
+    parser.read_section(
+        "SEGMENT MAP",
+        dedent("""\
+        Sec  flags  ovl   grp   frm sname cname    offset    cbSeg
+         03  010b  0000  0000  0003  ffff  ffff  00000000 0001a734
+         06  0208  0000  0000  0000  ffff  ffff  00000000 ffffffff
+        """),
+    )
+
+    cvdump_analysis = CvdumpAnalysis(parser)
+    load_cvdump(cvdump_analysis, db, binfile)
+
+    assert db.get(ImageId.RECOMP, 0x1010292A) is not None
+    assert db.get(ImageId.RECOMP, 0x10119876) is None
