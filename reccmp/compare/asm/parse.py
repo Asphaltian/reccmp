@@ -8,6 +8,7 @@ placeholder string."""
 
 import re
 from functools import cache
+from typing import Callable
 from typing_extensions import Buffer
 from .const import JUMP_MNEMONICS, SINGLE_OPERAND_INSTS
 from .instgen import DisasmLiteTuple, InstructGen, SectionType
@@ -41,8 +42,10 @@ class ParseAsm:
         addr_test: AddrTestProtocol | None = None,
         name_lookup: NameReplacementProtocol | None = None,
         is_32bit: bool = True,
+        reloc_test: Callable[[int], bool] | None = None,
     ) -> None:
         self.addr_test = addr_test
+        self.reloc_test = reloc_test
         self.name_lookup = name_lookup
         self.is_32bit = is_32bit
 
@@ -60,6 +63,12 @@ class ParseAsm:
             return self.addr_test(value)
 
         return False
+
+    def is_relocated_at(self, start: int, end: int) -> bool:
+        if not callable(self.reloc_test):
+            return True
+
+        return any(self.reloc_test(addr) for addr in range(start, end))
 
     def lookup(
         self, addr: int, exact: bool = False, indirect: bool = False
@@ -166,7 +175,9 @@ class ParseAsm:
                 return (inst_mnemonic, self.replace(op_str_address, exact=True))
 
             if inst_mnemonic == "push":
-                if self.is_addr(op_str_address):
+                if self.is_addr(op_str_address) and self.is_relocated_at(
+                    inst_address + 1, inst_address + inst_size
+                ):
                     return (inst_mnemonic, self.replace(op_str_address))
 
                 # To avoid falling into jump handling
@@ -196,13 +207,14 @@ class ParseAsm:
         # i.e. ptr [register + something]
         # Otherwise we would use a placeholder for every stack variable,
         # vtable call, or this->member access.
-        op_str = displace_replace_regex.sub(self.hex_replace_relocated, op_str)
+        if self.is_relocated_at(inst_address, inst_address + inst_size):
+            op_str = displace_replace_regex.sub(self.hex_replace_relocated, op_str)
 
         # In the event of pointer comparison, only replace the immediate value
         # if it is a known address.
         if inst_mnemonic == "cmp":
             op_str = immediate_replace_regex.sub(self.hex_replace_annotated, op_str)
-        else:
+        elif self.is_relocated_at(inst_address + inst_size - 4, inst_address + inst_size - 3):
             op_str = immediate_replace_regex.sub(self.hex_replace_relocated, op_str)
 
         return (inst_mnemonic, op_str)

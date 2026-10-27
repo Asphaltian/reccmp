@@ -52,6 +52,17 @@ def create_valid_addr_lookup(
     return lookup
 
 
+def create_reloc_lookup(bin_file: Image) -> Callable[[int], bool] | None:
+    relocations = getattr(bin_file, "relocations", None)
+    if not relocations:
+        return None
+
+    def lookup(addr: int) -> bool:
+        return addr in relocations
+
+    return lookup
+
+
 def create_bin_lookup(bin_file: Image) -> Callable[[int], int | None]:
     """Function generator to read a pointer from the bin file"""
 
@@ -86,6 +97,7 @@ class FunctionComparator:
                 partial(get_name_for_offset, self.types),
             ),
             is_32bit=self.is_32bit,
+            reloc_test=create_reloc_lookup(self.orig_bin),
         )
         self.recomp_sanitize = ParseAsm(
             addr_test=create_valid_addr_lookup(
@@ -98,6 +110,7 @@ class FunctionComparator:
                 partial(get_name_for_offset, self.types),
             ),
             is_32bit=self.is_32bit,
+            reloc_test=create_reloc_lookup(self.recomp_bin),
         )
 
     def _source_ref_of_recomp_addr(self, recomp_addr: int | None) -> str | None:
