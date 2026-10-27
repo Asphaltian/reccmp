@@ -38,6 +38,12 @@ _data_regex = re.compile(
 # e.g. 0004 "C:\work\lego-island\isle\3rdparty\smartheap\SHLW32MT.LIB" "check.obj"
 _module_regex = re.compile(r"(?P<id>\w{4})(?: \"(?P<lib>.+?)\")?(?: \"(?P<obj>.+?)\")")
 
+_segment_map_regex = re.compile(
+    r"^\s*(?P<section>[0-9a-fA-F]{2,4})\s+(?P<flags>[0-9a-fA-F]{4})\s+[0-9a-fA-F]{4}\s+[0-9a-fA-F]{4}\s+[0-9a-fA-F]{4}\s+"
+)
+
+_SEGMENT_MAP_ABSOLUTE = 0x200
+
 # cvdump prints this at the top of the TYPES section when the PDB has a 16-bit
 # type pool (TPI header version <= impv41), which identifies an MSVC 4.x-era PDB.
 # https://github.com/microsoft/microsoft-pdb/blob/805655a/cvdump/dumppdb.cpp#L244-L246
@@ -119,6 +125,7 @@ class CvdumpParser:
         self.sizerefs: list[SizeRefEntry] = []
         self.globals: list[GdataEntry] = []
         self.modules: list[ModuleEntry] = []
+        self.absolute_segments: set[int] = set()
 
         self.types = CvdumpTypesParser()
         self.symbols_parser = CvdumpSymbolsParser()
@@ -208,6 +215,11 @@ class CvdumpParser:
                 )
             )
 
+    def _segment_map_section(self, line: str):
+        if (match := _segment_map_regex.match(line)) is not None:
+            if int(match.group("flags"), 16) & _SEGMENT_MAP_ABSOLUTE:
+                self.absolute_segments.add(int(match.group("section"), 16))
+
     def read_section(self, name: str, section: str):
         if name == "TYPES":
             self.is_16bit_type_pool = _CONVERT_16BIT_TYPES_MESSAGE in section
@@ -236,3 +248,7 @@ class CvdumpParser:
         elif name == "MODULES":
             for line in section.splitlines():
                 self._modules_section(line)
+
+        elif name == "SEGMENT MAP":
+            for line in section.splitlines():
+                self._segment_map_section(line)

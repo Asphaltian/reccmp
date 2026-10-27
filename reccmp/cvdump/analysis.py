@@ -290,7 +290,9 @@ class CvdumpAnalysis:
                         pass
 
         self.nodes: list[CvdumpNode] = [
-            v for _, v in dict(sorted(node_dict.items())).items()
+            v
+            for k, v in dict(sorted(node_dict.items())).items()
+            if v.section not in parser.absolute_segments
         ]
         self._estimate_size()
 
