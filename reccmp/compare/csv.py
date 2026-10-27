@@ -66,6 +66,7 @@ class CsvValuesType(TypedDict):
     name: NotRequired[str]
     size: NotRequired[int]
     symbol: NotRequired[str]
+    module: NotRequired[str]
 
     # Set implicitly via type for now
     stub: NotRequired[bool]
@@ -142,6 +143,9 @@ def _convert_attrs(values: Iterable[tuple[str, str]]) -> CsvValuesType:
 
         if key == "name":
             output["name"] = value
+
+        if key == "module" and value:
+            output["module"] = value
 
         if key == "size":
             output["size"] = decimal_or_hex(value)

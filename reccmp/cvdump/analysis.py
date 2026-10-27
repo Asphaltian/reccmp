@@ -1,5 +1,6 @@
 """For collating the results from parsing cvdump.exe into a more directly useful format."""
 
+import bisect
 import re
 import string
 from dataclasses import dataclass, field
@@ -84,6 +85,7 @@ class CvdumpNode:
     # Preliminary - only used for non-static variables at the moment
     data_type: TypeInfo | None = None
     aliases: list[str] = field(default_factory=list)
+    module: str | None = None
 
     @classmethod
     def from_node_key(cls, key: NodeKey):
@@ -265,6 +267,36 @@ class CvdumpAnalysis:
             if k.section not in parser.absolute_segments
         ]
         self._estimate_size()
+        self._assign_modules()
+
+    def _assign_modules(self):
+        module_names = {m.id: m.obj for m in self.parser.modules}
+        if not module_names:
+            return
+
+        contributions: dict[int, list[tuple[int, int, int]]] = {}
+        for sizeref in self.parser.sizerefs:
+            contributions.setdefault(sizeref.section, []).append(
+                (sizeref.offset, sizeref.size, sizeref.module)
+            )
+
+        starts: dict[int, list[int]] = {}
+        for section, entries in contributions.items():
+            entries.sort()
+            starts[section] = [offset for offset, _, _ in entries]
+
+        for node in self.nodes:
+            entries = contributions.get(node.section)
+            if not entries:
+                continue
+
+            i = bisect.bisect_right(starts[node.section], node.offset) - 1
+            if i < 0:
+                continue
+
+            offset, size, module = entries[i]
+            if node.offset < offset + size:
+                node.module = module_names.get(module)
 
     @property
     def types(self) -> CvdumpTypesParser:

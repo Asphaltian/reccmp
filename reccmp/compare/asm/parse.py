@@ -214,7 +214,9 @@ class ParseAsm:
         # if it is a known address.
         if inst_mnemonic == "cmp":
             op_str = immediate_replace_regex.sub(self.hex_replace_annotated, op_str)
-        elif self.is_relocated_at(inst_address + inst_size - 4, inst_address + inst_size - 3):
+        elif self.is_relocated_at(
+            inst_address + inst_size - 4, inst_address + inst_size - 3
+        ):
             op_str = immediate_replace_regex.sub(self.hex_replace_relocated, op_str)
 
         return (inst_mnemonic, op_str)

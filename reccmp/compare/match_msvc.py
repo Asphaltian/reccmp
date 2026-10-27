@@ -1,3 +1,4 @@
+from pathlib import PureWindowsPath
 from reccmp.types import EntityType
 from reccmp.compare.db import EntityDb
 from reccmp.compare.lines import LinesDb
@@ -347,8 +348,13 @@ def match_static_variables(
                 )
 
 
+def module_stem(module: str) -> str:
+    return PureWindowsPath(module).name.split(".")[0].lower()
+
+
 def match_variables(db: EntityDb, report: ReccmpReportProtocol = reccmp_report_nop):
     var_name_index = EntityIndex()
+    var_module_index: dict[tuple[str, str], list[int]] = {}
 
     # TODO: We allow a match if entity_type is null.
     # This can be removed if we can more confidently declare a symbol is a variable
@@ -368,22 +374,49 @@ def match_variables(db: EntityDb, report: ReccmpReportProtocol = reccmp_report_n
         assert ent.recomp_addr is not None
         var_name_index.add(name, ent.recomp_addr)
 
+        module = ent.get("module")
+        if module is not None:
+            var_module_index.setdefault((name, module_stem(module)), []).append(
+                ent.recomp_addr
+            )
+
+    candidates = []
+    for ent in db.unmatched(ImageId.ORIG):
+        if ent.get("type") != EntityType.DATA:
+            continue
+
+        if not ent.get("name"):
+            continue
+
+        if ent.get("static_var"):
+            continue
+
+        assert ent.orig_addr is not None
+        candidates.append(ent)
+
+    candidates.sort(key=lambda ent: ent.get("module") is None)
+    used: set[int] = set()
+
     with db.batch() as batch:
-        for ent in db.unmatched(ImageId.ORIG):
-            if ent.get("type") != EntityType.DATA:
-                continue
-
+        for ent in candidates:
             name = ent.get("name")
-            if not name:
-                continue
+            module = ent.get("module")
+            recomp_addr = None
 
-            if ent.get("static_var"):
-                continue
+            if module is not None:
+                for addr in var_module_index.get((name, module_stem(module)), []):
+                    if addr not in used:
+                        recomp_addr = addr
+                        break
+            else:
+                while name in var_name_index:
+                    addr = var_name_index.pop(name)
+                    if addr not in used:
+                        recomp_addr = addr
+                        break
 
-            assert ent.orig_addr is not None
-
-            if name in var_name_index:
-                recomp_addr = var_name_index.pop(name)
+            if recomp_addr is not None:
+                used.add(recomp_addr)
                 batch.match(ent.orig_addr, recomp_addr)
             else:
                 report(
