@@ -4,6 +4,7 @@
 # pyright: reportMissingModuleSource=false
 
 from ghidra.program.model.data import (
+    BooleanDataType,
     BuiltIn,
     LongDataType,
     VoidDataType,
@@ -41,6 +42,7 @@ _scalar_type_map: dict[CvdumpTypeKey, BuiltIn] = {
     CVInfoTypeEnum.T_WCHAR: WideCharDataType(),
     CVInfoTypeEnum.T_INT4: IntegerDataType(),
     CVInfoTypeEnum.T_UINT4: UnsignedIntegerDataType(),
+    CVInfoTypeEnum.T_BOOL08: BooleanDataType(),
 }
 
 
