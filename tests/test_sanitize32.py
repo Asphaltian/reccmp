@@ -330,6 +330,30 @@ def test_cmp_with_name_lookup():
     assert op_str == "eax, Hello"
 
 
+def test_cmp_with_name_lookup_not_relocated():
+    """A CMP immediate the image does not relocate is a number, even where
+    it happens to equal the address of something with a name."""
+    name_lookup = Mock(spec=NameReplacementProtocol, return_value="Hello")
+    p = ParseAsm(name_lookup=name_lookup, reloc_test=lambda _: False)
+    inst = (0x1000, 5, "cmp", "eax, 0x2000")
+
+    _, op_str = p.sanitize(inst)
+
+    name_lookup.assert_not_called()
+    assert op_str == inst[3]
+
+
+def test_cmp_with_name_lookup_relocated():
+    """A relocated CMP immediate is a pointer and takes its name."""
+    name_lookup = Mock(spec=NameReplacementProtocol, return_value="Hello")
+    p = ParseAsm(name_lookup=name_lookup, reloc_test=lambda addr: addr == 0x1001)
+    inst = (0x1000, 5, "cmp", "eax, 0x2000")
+
+    _, op_str = p.sanitize(inst)
+
+    assert op_str == "eax, Hello"
+
+
 def test_call_without_name_lookup():
     """CALL 0x____ instructions always use a placeholder."""
     addr_test = Mock(spec=AddrTestProtocol, return_value=False)
