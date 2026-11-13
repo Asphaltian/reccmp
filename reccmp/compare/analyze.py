@@ -6,6 +6,7 @@ import logging
 import struct
 from typing import Container, Iterable
 from reccmp.formats import Image, PEImage
+from reccmp.formats.image import ImageSectionFlags
 from reccmp.formats.exceptions import (
     InvalidVirtualAddressError,
     InvalidVirtualReadError,
@@ -244,6 +245,31 @@ def create_analysis_vtordisps(db: EntityDb, img_id: ImageId, binfile: PEImage):
             # Create an entity for the referenced function, but do not overwrite an existing entity (for now).
             if not db.exists(img_id, vtor.func_addr):
                 batch.set(img_id, vtor.func_addr, type=EntityType.FUNCTION)
+
+
+def float_unmatched_const_data(db: EntityDb, recomp_bin: PEImage):
+    read_only = [
+        section.virtual_range
+        for section in recomp_bin.sections
+        if not section.flags & (ImageSectionFlags.WRITE | ImageSectionFlags.BSS)
+    ]
+    orig_names = {ent.get("name") for ent in db.all(ImageId.ORIG)}
+
+    with db.batch() as batch:
+        for ent in db.unmatched(ImageId.RECOMP):
+            if ent.get("type") != EntityType.DATA or ent.get("data_type") not in (
+                0x40,
+                0x41,
+            ):
+                continue
+
+            if ent.get("name") in orig_names:
+                continue
+
+            addr = ent.recomp_addr
+            assert addr is not None
+            if any(addr in virtual_range for virtual_range in read_only):
+                batch.set(ImageId.RECOMP, addr, type=EntityType.FLOAT, name=None)
 
 
 def complete_partial_floats(db: EntityDb, image_id: ImageId, binfile: PEImage):

@@ -49,6 +49,7 @@ from .analyze import (
     create_seh_entities,
     complete_partial_floats,
     complete_partial_strings,
+    float_unmatched_const_data,
     match_entry,
     match_exports,
     import_sections,
@@ -246,6 +247,7 @@ class Compare:
         match_symbol_aliases(self._db, truncate=self.cvdump_analysis.truncate_symbols)
         unique_names_for_overloaded_functions(self._db)
         name_thunks(self._db)
+        float_unmatched_const_data(self._db, self.recomp_bin)
 
         # Search for const data values and read bytes from the binaries.
         # This happens last because establishing all other entities first
