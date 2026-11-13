@@ -224,9 +224,7 @@ class ParseAsm:
         )
         if inst_mnemonic == "cmp":
             if immediate_relocated:
-                op_str = immediate_replace_regex.sub(
-                    self.hex_replace_annotated, op_str
-                )
+                op_str = immediate_replace_regex.sub(self.hex_replace_annotated, op_str)
         elif immediate_relocated:
             op_str = immediate_replace_regex.sub(self.hex_replace_relocated, op_str)
 
