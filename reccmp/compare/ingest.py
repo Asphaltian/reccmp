@@ -101,7 +101,10 @@ def load_cvdump(cvdump_analysis: CvdumpAnalysis, db: EntityDb, recomp_bin: PEIma
                     size=sym.size(),
                 )
 
-                if sym.node_type == EntityType.DATA and sym.module is not None:
+                if (
+                    sym.node_type in (EntityType.DATA, EntityType.FUNCTION)
+                    and sym.module is not None
+                ):
                     batch.set(ImageId.RECOMP, sym.addr, module=sym.module)
 
                 # Set the cvdump type key so it can be referenced later.

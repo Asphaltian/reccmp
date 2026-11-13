@@ -125,6 +125,7 @@ def match_functions(
     recomp_symbols: dict[int, str] = {}
 
     name_index = EntityIndex()
+    module_index: dict[tuple[str, str], list[int]] = {}
 
     # TODO: We allow a match if entity_type is null.
     # This can be removed if we can more confidently declare a symbol is a function
@@ -145,6 +146,12 @@ def match_functions(
         assert ent.recomp_addr is not None
         name_index.add(name, ent.recomp_addr)
 
+        module = ent.get("module")
+        if module is not None:
+            module_index.setdefault((name, module_stem(module)), []).append(
+                ent.recomp_addr
+            )
+
         # Get the symbol for the error message later.
         if symbol is not None:
             recomp_symbols[ent.recomp_addr] = symbol
@@ -153,24 +160,46 @@ def match_functions(
     # If the name list contained multiple addresses at the start,
     # we should report even for the last address in the list.
     non_unique_names = set()
+    used: set[int] = set()
+
+    candidates = [
+        ent
+        for ent in db.unmatched(ImageId.ORIG)
+        if ent.get("type") == EntityType.FUNCTION and ent.get("name")
+    ]
+    candidates.sort(key=lambda ent: ent.get("module") is None)
 
     with db.batch() as batch:
-        for ent in db.unmatched(ImageId.ORIG):
+        for ent in candidates:
             name = ent.get("name")
-            if ent.get("type") != EntityType.FUNCTION:
-                continue
-
-            if not name:
-                continue
-
+            assert name is not None
             assert ent.orig_addr is not None
 
             # Repeat the truncate for our match search
             if truncate:
                 name = name[:255]
 
+            module = ent.get("module")
+            if module is not None:
+                for addr in module_index.get((name, module_stem(module)), []):
+                    if addr not in used:
+                        used.add(addr)
+                        batch.match(ent.orig_addr, addr)
+                        break
+                else:
+                    report(
+                        ReccmpEvent.NO_MATCH,
+                        ent.orig_addr,
+                        msg=f"Failed to match function at 0x{ent.orig_addr:x} with name '{name}' in {module}",
+                    )
+                continue
+
+            while name in name_index and name_index.get(name)[0] in used:
+                name_index.pop(name)
+
             if name in name_index:
                 recomp_addr = name_index.pop(name)
+                used.add(recomp_addr)
                 # If match was not unique
                 if name in name_index:
                     non_unique_names.add(name)
@@ -369,6 +398,12 @@ def match_variables(db: EntityDb, report: ReccmpReportProtocol = reccmp_report_n
 
         symbol = ent.get("symbol")
         if symbol is not None and symbol.startswith(name + "___"):
+            static_module = ent.get("module")
+            if static_module is not None:
+                assert ent.recomp_addr is not None
+                var_module_index.setdefault(
+                    (symbol, module_stem(static_module)), []
+                ).append(ent.recomp_addr)
             continue
 
         assert ent.recomp_addr is not None
